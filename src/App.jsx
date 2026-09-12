@@ -1,122 +1,174 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import './App.css';
+
+const API_KEY = import.meta.env.VITE_NESSIE_API_KEY;
+const BASE_URL = 'https://api.nessieisreal.com';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Estados para el formulario de nuevo cliente
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [streetNumber, setStreetNumber] = useState('');
+  const [streetName, setStreetName] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zip, setZip] = useState('');
+
+  // Función para obtener los clientes de la API
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/customers?key=${API_KEY}`);
+      if (!response.ok) throw new Error('Error al conectar con Nessie API');
+      const data = await response.json();
+      setCustomers(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  // Función para enviar los datos del nuevo cliente a Nessie
+  const handleCreateCustomer = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${BASE_URL}/customers?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          address: {
+            street_number: streetNumber,
+            street_name: streetName,
+            city: city,
+            state: state,
+            zip: zip
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error('No se pudo crear el cliente');
+
+      // Limpiar el formulario
+      setFirstName('');
+      setLastName('');
+      setStreetNumber('');
+      setStreetName('');
+      setCity('');
+      setState('');
+      setZip('');
+
+      // Recargar la lista automáticamente
+      fetchCustomers();
+    } catch (err) {
+      alert('Error al crear el cliente: ' + err.message);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
+      <h1>Dashboard - Capital One Nessie API</h1>
+
+      {/* Formulario para agregar nuevo cliente */}
+      <div style={{ border: '1px solid #ddd', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', background: '#fdfdfd' }}>
+        <h2>Crear Nuevo Cliente</h2>
+        <form onSubmit={handleCreateCustomer} style={{ display: 'grid', gap: '0.8rem', gridTemplateColumns: '1fr 1fr' }}>
+          <input 
+            type="text" 
+            placeholder="Nombre" 
+            value={firstName} 
+            onChange={(e) => setFirstName(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Apellido" 
+            value={lastName} 
+            onChange={(e) => setLastName(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Número de Calle (ej. 123)" 
+            value={streetNumber} 
+            onChange={(e) => setStreetNumber(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Nombre de Calle (ej. Main St)" 
+            value={streetName} 
+            onChange={(e) => setStreetName(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Ciudad" 
+            value={city} 
+            onChange={(e) => setCity(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Estado (ej. VA)" 
+            value={state} 
+            onChange={(e) => setState(e.target.value)} 
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Código Postal (ZIP)" 
+            value={zip} 
+            onChange={(e) => setZip(e.target.value)} 
+            required 
+          />
+          <button type="submit" style={{ gridColumn: 'span 2', padding: '0.8rem', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+            + Registrar Cliente
+          </button>
+        </form>
+      </div>
+
+      {/* Visualización de la lista */}
+      {loading && <p>Cargando datos del banco...</p>}
+      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+
+      {!loading && !error && (
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <h2>Lista de Clientes ({customers.length})</h2>
+          {customers.length === 0 ? (
+            <p>No hay clientes creados. Utiliza el formulario superior para añadir el primero.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+              {customers.map((customer) => (
+                <div 
+                  key={customer._id} 
+                  style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '1rem', background: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
+                >
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{customer.first_name} {customer.last_name}</h3>
+                  <p style={{ margin: '0.2rem 0', fontSize: '0.9rem', color: '#555' }}>
+                    <strong>ID:</strong> {customer._id}
+                  </p>
+                  <p style={{ margin: '0.2rem 0', fontSize: '0.9rem', color: '#555' }}>
+                    <strong>Dirección:</strong> {customer.address.street_number} {customer.address.street_name}, {customer.address.city}, {customer.address.state}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
