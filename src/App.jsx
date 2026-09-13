@@ -17,6 +17,9 @@ function App() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
+  
+  // NUEVO: Estado para el dinero/saldo
+  const [balance, setBalance] = useState('5000');
 
   // Función para obtener los clientes de la API
   const fetchCustomers = async () => {
@@ -37,11 +40,12 @@ function App() {
     fetchCustomers();
   }, []);
 
-  // Función para enviar los datos del nuevo cliente a Nessie
+  // Función para enviar los datos a Nessie (Cliente + Cuenta con Saldo)
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${BASE_URL}/customers?key=${API_KEY}`, {
+      // PASO 1: Crear el Cliente
+      const responseCustomer = await fetch(`${BASE_URL}/customers?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,7 +61,28 @@ function App() {
         })
       });
 
-      if (!response.ok) throw new Error('No se pudo crear el cliente');
+      if (!responseCustomer.ok) throw new Error('No se pudo crear el cliente');
+      const customerData = await responseCustomer.json();
+      
+      // Capturamos el ID generado por Capital One
+      const newCustomerId = customerData.objectCreated._id;
+
+      // PASO 2: Asignar la Cuenta Bancaria con el Saldo elegido
+      const responseAccount = await fetch(`${BASE_URL}/customers/${newCustomerId}/accounts?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'Checking',
+          nickname: 'Cuenta Principal',
+          rewards: 0,
+          balance: Number(balance)
+        })
+      });
+
+      if (!responseAccount.ok) throw new Error('Cliente creado, pero falló la asignación de dinero.');
+
+      // Alerta con el ID para copiarlo fácilmente
+      alert(`¡Éxito!\nCliente: ${firstName} ${lastName}\nSaldo asignado: $${balance}\nID de Nessie: ${newCustomerId}`);
 
       // Limpiar el formulario
       setFirstName('');
@@ -67,11 +92,12 @@ function App() {
       setCity('');
       setState('');
       setZip('');
+      setBalance('5000');
 
       // Recargar la lista automáticamente
       fetchCustomers();
     } catch (err) {
-      alert('Error al crear el cliente: ' + err.message);
+      alert('Error: ' + err.message);
     }
   };
 
@@ -81,7 +107,7 @@ function App() {
 
       {/* Formulario para agregar nuevo cliente */}
       <div style={{ border: '1px solid #ddd', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', background: '#fdfdfd' }}>
-        <h2>Crear Nuevo Cliente</h2>
+        <h2>Crear Nuevo Cliente + Asignar Saldo</h2>
         <form onSubmit={handleCreateCustomer} style={{ display: 'grid', gap: '0.8rem', gridTemplateColumns: '1fr 1fr' }}>
           <input 
             type="text" 
@@ -132,8 +158,19 @@ function App() {
             onChange={(e) => setZip(e.target.value)} 
             required 
           />
+
+          {/* Campo para meter la cantidad de dinero exacta */}
+          <input 
+            type="number" 
+            placeholder="Saldo Inicial ($)" 
+            value={balance} 
+            onChange={(e) => setBalance(e.target.value)} 
+            required 
+            style={{ border: '2px solid #0070f3', fontWeight: 'bold' }}
+          />
+
           <button type="submit" style={{ gridColumn: 'span 2', padding: '0.8rem', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-            + Registrar Cliente
+            + Registrar Cliente y Asignar Saldo
           </button>
         </form>
       </div>
